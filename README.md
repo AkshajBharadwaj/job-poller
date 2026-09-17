@@ -3,8 +3,6 @@
 Polls career sites for US SWE/ML internships and emails newly discovered
 matches. The current deployment includes 355 company adapters.
 
-Derived from [Rohan Krishnan's Job-poller](https://github.com/rohankrishnan2000/Job-poller).
-See [ATTRIBUTION.md](ATTRIBUTION.md) for provenance and license status.
 
 ## Production
 
