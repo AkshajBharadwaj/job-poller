@@ -1,9 +1,19 @@
 # Secrets and machine-specific configuration
 .env
+.env.*
+!.env.example
+gmail-client.json
+gmail-token.json
+client_secret*.json
 *.pem
+*.key
+.ssh/
 
 # Local poller state
 jobs.db
+*.db
+*.db-wal
+*.db-shm
 *.db-journal
 .sms_opt_in_sent
 logs/
@@ -15,3 +25,5 @@ __pycache__/
 
 # Browser network captures can contain cookies and transient access tokens.
 *.har
+.DS_Store
+.cache/

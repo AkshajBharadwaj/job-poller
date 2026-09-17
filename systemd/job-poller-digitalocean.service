@@ -1,0 +1,17 @@
+[Unit]
+Description=Poll career sites for new internship postings
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/careers/.env
+
+[Service]
+Type=oneshot
+User=jobpoller
+Group=jobpoller
+WorkingDirectory=/opt
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/careers/.venv/bin/python -m careers.watch
+TimeoutStartSec=15min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
