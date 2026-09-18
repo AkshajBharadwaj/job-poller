@@ -1,0 +1,18 @@
+[Unit]
+Description=Poll public recruiting events and announcements
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/careers/.env
+
+[Service]
+Type=oneshot
+User=jobpoller
+Group=jobpoller
+WorkingDirectory=/opt
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/careers/.venv/bin/python -m careers.event_watch
+TimeoutStartSec=10min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+

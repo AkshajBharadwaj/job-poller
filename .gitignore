@@ -16,6 +16,7 @@ jobs.db
 *.db-shm
 *.db-journal
 .sms_opt_in_sent
+.event-poller.lock
 logs/
 
 # Python build/runtime artifacts
