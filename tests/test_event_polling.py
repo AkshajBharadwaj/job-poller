@@ -82,6 +82,13 @@ class EventTests(unittest.TestCase):
         self.assertEqual(deliver(self.db, NOW, set(), lambda *a: self.fail("should not send")), 0)
         self.assertEqual(self.send(), 1)
 
+    def test_community_source_fallback_does_not_repeat(self):
+        event = replace(self.event, kind="community", start="2026-10-01T12:00:00Z")
+        self.observe(event)
+        self.send()
+        observe(self.db, "fallback", [replace(event, start="2026-10-01T12:00:00+00:00", location="See source")], NOW)
+        self.assertEqual(deliver(self.db, NOW, {"fallback"}, lambda *a: self.fail("Duplicate")), 0)
+
     def test_disappearance_cancels_stale_delivery(self):
         self.observe()
         observe(self.db, "test", [], NOW)

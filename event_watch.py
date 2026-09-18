@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-from .event_sources import Event, SOURCES, fetch
+from .event_sources import Event, SOURCES, fetch, timestamp
 
 ROOT = Path(__file__).resolve().parent
 
@@ -50,9 +50,14 @@ def observe(db, source, events, now):
             present.add((event.company, event.id))
             data = json.dumps(event.payload(), sort_keys=True)
             sig, active = signature(event), int(event.actionable(now))
-            old = db.execute("SELECT signature, revision, active FROM events WHERE company=? AND id=?",
+            old = db.execute("SELECT signature, revision, active, source, payload FROM events WHERE company=? AND id=?",
                              (event.company, event.id)).fetchone()
             changed = old is None or old[0] != sig or (active and not old[2])
+            if (old and event.kind == "community" and old[3] != source and event.status == "listed"
+                    and timestamp(json.loads(old[4]).get("start")) == timestamp(event.start)):
+                # Switching from rich discovery data to a bare calendar isn't a
+                # reopening or venue change; avoid a second alert for the same event.
+                changed = False
             revision = (old[1] + int(changed)) if old else 1
             if changed or not active:
                 db.execute("UPDATE deliveries SET state='superseded' WHERE company=? AND id=? AND state IN ('pending','missing')",
@@ -79,6 +84,10 @@ def format_event(event):
         return (f"{event.company}: recruiting-event page update\n"
                 "Announcement change only — date, signup availability and eligibility are NOT verified.\n"
                 f"{event.details[:2400]}\nReview: {event.url}")
+    if event.kind == "community":
+        return (f"{event.company}: {event.title}\n{event.when} | {event.location}\n"
+                f"{event.cost} | {'Waitlist' if event.status == 'waitlist' else 'Check registration'}\n"
+                f"{event.eligibility}\n{event.url}")
     status = {"open": "Applications open (source deadline is in the future)",
               "listed": "Upcoming listing; confirm registration availability on the linked page",
               "waitlist": "Waitlist"}[event.status]
@@ -103,14 +112,18 @@ def deliver(db, now, successful_sources, sender):
         elif source in successful_sources:
             ready.append((company, event_id, revision, event))
     sent = 0
-    # One digest instead of an email per initial event; bounded chunks if expanded.
-    for offset in range(0, len(ready), 25):
-        batch = ready[offset:offset + 25]
+    # Compact community listings can share a larger digest; recruiting keeps detail.
+    groups = [([r for r in ready if r[3].kind != "community"], 25),
+              ([r for r in ready if r[3].kind == "community"], 100)]
+    batches = [rows[offset:offset + size] for rows, size in groups
+               for offset in range(0, len(rows), size)]
+    for batch in batches:
         keys = [(c, i, r) for c, i, r, _ in batch]
         with db:
             db.executemany("UPDATE deliveries SET attempts=attempts+1 WHERE company=? AND id=? AND revision=?", keys)
-        subject = f"Recruiting alerts: {len(batch)} new or updated events / announcements"
-        body = ("Recruiting-event monitor\nVirtual and in-person; all locations. "
+        prefix = "Community & career alerts" if any(e.kind == "community" for _, _, _, e in batch) else "Recruiting alerts"
+        subject = f"{prefix}: {len(batch)} new or updated events / announcements"
+        body = ("Career & community event monitor\nVirtual and in-person. "
                 "Check each source for eligibility and registration details.\n\n" +
                 "\n\n--------------------\n\n".join(format_event(e) for _, _, _, e in batch))
         sender(subject, body)  # failure preserves pending state for the next poll
@@ -149,6 +162,19 @@ def collect(sources):
             except Exception as exc:
                 # No response bodies / credentials in logs.
                 failures[source.key] = type(exc).__name__
+    # Feed overlap is common (e.g. AI discovery + Tech discovery + Tech Week).
+    # Deterministic precedence prevents metadata differences flipping each poll.
+    seen = set()
+    for source in sources:
+        if source.key not in results:
+            continue
+        unique = []
+        for event in results[source.key]:
+            key = (event.company, event.id)
+            if key not in seen:
+                unique.append(event)
+                seen.add(key)
+        results[source.key] = unique
     return results, failures
 
 

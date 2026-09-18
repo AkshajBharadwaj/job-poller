@@ -61,6 +61,8 @@ class Event:
             return False
         if self.start and self.start[:10] < now.date().isoformat():
             return False
+        if self.kind == "community" and self.start and timestamp(self.start) <= now:
+            return False
         return bool(self.start or self.deadline)
 
     def payload(self):
@@ -87,6 +89,11 @@ SOURCES = tuple(
     Source("optiver", "Optiver", "https://www.optiver.com/join-us/events/", "optiver"),
     Source("figma", "Figma", "https://www.figma.com/careers/early-career/", "announcement"),
     Source("databricks", "Databricks", "https://www.databricks.com/company/careers/university-recruiting", "announcement"),
+    Source("uw-allen", "University of Washington", "https://www.trumba.com/calendars/sea_cse.json", "uw_trumba"),
+    Source("uw-clubs-careers", "University of Washington", "https://calendar.google.com/calendar/ical/cs.washington.edu_kpim983lg1a6mctsbup4ftg2l4%40group.calendar.google.com/public/basic.ics", "uw_ics"),
+    Source("bay-ai", "Bay Area tech community", "https://luma.com/discover/sf/ai", "luma_discovery"),
+    Source("bay-tech", "Bay Area tech community", "https://luma.com/discover/sf/tech", "luma_discovery"),
+    Source("sf-techweek", "Bay Area tech community", "https://api2.luma.com/ics/get?entity=calendar&id=cal-bR2dxhC1V6wCtK8", "luma_ics"),
 )
 
 
@@ -199,6 +206,9 @@ def fetch(source):
             events = parse_optiver(response.text, source.url)
         elif source.parser == "announcement":
             events = parse_announcement(response.text, source)
+        elif source.parser in ("uw_trumba", "uw_ics", "luma_discovery", "luma_ics"):
+            from .community_sources import parse_community
+            events = parse_community(response.text, source)
         else:
             raise ValueError("Unknown source parser")
     for event in events:

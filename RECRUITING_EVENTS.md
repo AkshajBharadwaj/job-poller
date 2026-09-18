@@ -1,4 +1,4 @@
-# Recruiting-event alerts
+# Career and community-event alerts
 
 Separate from job polling: `python -m careers.event_watch` from `/opt` on
 the VM. Install `requirements-events.txt`. Uses the existing Gmail sender,
@@ -16,12 +16,42 @@ with no extra Gmail permissions, paid APIs, SMS, or automatic signups.
 - Databricks: university-recruiting page, watching for recruiting-event /
   BrickFest sections appearing or changing.
 
-The last two are **announcement watches**, not complete calendars. Their first
+## UW Seattle and Bay Area community coverage
+
+Community sources intentionally broaden the recruiting-only scope to technical
+talks, developer/AI nights, hackathons, startup networking and student clubs.
+They run on the same 30-minute timer and email account, not the job timer.
+
+- **University of Washington (Seattle):** Allen School's public Trumba calendar,
+  plus the public Google calendar linked on its undergraduate events page for
+  student organizations and company events. Academic holidays, admissions,
+  dissertation defenses and routine advising are excluded. Google recurrences
+  and exceptions are expanded over the next 90 days. UW affiliation may be required.
+- **Bay Area AI and tech:** public Luma SF discovery pages. These return a rolling
+  initial window of up to 25 listings per category, **not every event on Luma**.
+  Tech listings require a technical/startup/engineering signal. Out-of-region
+  coordinates and explicitly closed registrations are excluded; waitlists are labeled.
+- **SF Tech Week:** public iCalendar from [the curated Luma calendar](https://luma.com/sftw).
+  This is not a complete mirror of the official a16z schedule. The official site
+  returned HTTP 429 from the VM. The iCal feed advertises a 12-hour refresh interval,
+  so polling every 30 minutes does not guarantee 30-minute source freshness.
+
+Times are shown in Pacific time. Events which have already started are not new
+community alerts. Shared Luma event IDs deduplicate across the three feeds.
+Community digests use compact listings (up to 100 per email); recruiting digests
+retain their detailed format (25 per email). No signups are submitted automatically.
+Costs and host approval requirements are labeled where exposed, never guessed.
+
+Direct organizer calendars can be added for earlier discovery. Private/invite-only
+events, UW-login-only feeds and the user's personal invitations are not accessible.
+The GPT-6 community night organizer has not been identified or directly monitored.
+
+Figma and Databricks are **announcement watches**, not complete calendars. Their first
 snapshot is silent, then substantive section changes generate explicitly
 unverified page-update alerts. Currently no public signup is exposed there.
 Private invitations, campus-login-only calendars, LinkedIn posts and arbitrary
 Luma pages are not covered. Citadel returned 403 from the VM and is not enabled.
-General product webinars/customer conferences are not monitored. This is initial
+General product webinar calendars are not monitored. This is initial
 coverage, not an all-company event search. New verified feeds belong in
 `event_sources.py`, not the job-adapter auto-discovery package.
 
@@ -48,6 +78,7 @@ that would resend the initial digest. Back it up alongside `jobs.db`.
 ```sh
 cd /opt
 /opt/careers/.venv/bin/python -m unittest careers.tests.test_event_polling
+/opt/careers/.venv/bin/python -m unittest careers.tests.test_community_events
 /opt/careers/.venv/bin/python -m careers.event_watch --dry-run --twice
 sudo systemctl enable --now event-poller.timer
 sudo systemctl start event-poller.service
